@@ -1,0 +1,133 @@
+---
+title: "HW3_Q3"
+author: "Mimis Jimenez"
+date: "4/20/2020"
+output:
+  pdf_document: default
+    df_print: paged
+---
+
+##Clustering and PCA
+
+Load packages and data
+```{r}
+library(remotes)
+library(rlang)
+library(LICORS)
+library(foreach)
+library(tidyverse)
+library(dplyr)
+library(mosaic)
+wine<-read.csv("wine.csv")
+```
+
+
+#Clusters
+```{r}
+#Center and scale the data
+winex <- wine[,-(12:13)]
+winex <- scale(winex, center = TRUE, scale = TRUE)
+
+#Extract centers and scales
+mu <- attr(winex,"scaled:center")
+sigma <- attr(winex,"scaled:scale")
+
+#Let's run K-means clustering with K = 5
+clust_2 <- kmeans(winex, 2, nstart = 25)
+clust_2$center
+clust_2$center[1,]*sigma + mu
+clust_2$center[2,]*sigma + mu
+
+#These two plots show that the two clusters did an okay job of separating the wines by color!
+qplot(density, alcohol, data = wine, color = factor(clust_2$cluster))
+qplot(density, alcohol, data = wine, color = factor(wine$color))
+
+qplot(volatile.acidity, citric.acid, data = wine, color = factor(clust_2$cluster))
+qplot(volatile.acidity, citric.acid, data = wine, color = factor(wine$color))
+
+
+#Let's see if the same thing can happen with 10 clusters and the 10 levels of quality.
+clust_10 <- kmeans(winex, 10, nstart = 25)
+clust_10$center
+clust_10$center[1,]*sigma + mu
+clust_10$center[10,]*sigma + mu
+
+#This doesn't really tell us much...
+qplot(density, alcohol, data = wine, color = factor(clust_10$cluster))
+qplot(density, alcohol, data = wine, color = factor(wine$quality))
+
+#This doesn't help either...
+qplot(pH, alcohol, data = wine, color = factor(clust_10$cluster))
+qplot(pH, alcohol, data = wine, color = factor(wine$quality))
+
+#Let's try manipulating the quality variable into different "tiers" of wine quality
+wine$quality_tier <- rep(0,nrow(wine))
+wine$quality_tier[which(wine$quality<=4)] <- "low"
+wine$quality_tier[which(wine$quality==5)] <- "mid"
+wine$quality_tier[which(wine$quality==6)] <- "mid"
+wine$quality_tier[which(wine$quality==7)] <- "mid"
+wine$quality_tier[which(wine$quality>=8)] <- "high"
+
+#Try clusters again with 3
+clust_3 <- kmeans(winex, 3, nstart = 25)
+clust_3$center
+clust_3$center[1,]*sigma + mu
+clust_3$center[3,]*sigma + mu
+
+#Better, but not a lot of information
+qplot(pH, alcohol, data = wine, color = factor(clust_3$cluster))
+qplot(pH, alcohol, data = wine, color = factor(wine$quality_tier))
+
+#Nope
+qplot(log(alcohol), log(density) , data = wine, color = factor(clust_3$cluster))
+qplot(log(alcohol), log(density) , data = wine, color = factor(wine$quality_tier))
+
+#Nope
+qplot(alcohol, fixed.acidity , data = wine, color = factor(clust_3$cluster))
+qplot(alcohol, fixed.acidity , data = wine, color = factor(wine$quality_tier))
+
+#Nope
+qplot(volatile.acidity, citric.acid , data = wine, color = factor(clust_3$cluster))
+qplot(volatile.acidity, citric.acid , data = wine, color = factor(wine$quality_tier))
+
+```
+After creating clusters of the wine data, it seems like 2 clusters did a good job of separating the wine by color. I took a few plots of different pairs of variables from the data and first highlighted the color of the clusters and saw how they compared when the color was coded by wine color. As you can see in the plots, the graphs have a similar color pattern when. This shows that the two clusters were successfully able to distinguish the wines by wine color (red or white). However, after creating 10 clusters to see if the clusters could separate the data by the different wine qualities, it did not produce successful results. The graphs color-colored by the 10 clusters were not similar to the graphs color-coded by the 10 different qualities. I thought that maybe it would be hard to distinguish between the 10 different groups of wine quality and it might be better to group the wine qualities into tiers of three levels: low, medium, and high. I ran clusters again, this time with three, to see if the quality tiers could be distinguished. However, this did not seem to work either as the graphs color-coded by the three clusters did not look similar to the graphs color-coded by the quality tiers. Additionally, the graphs color-coded by quality tiers did not have a clear pattern of three distinct groups. All three quality tiers were mixed all over the graph of several pairs of chemical variables. This gives a sign that the quality of a wine is not largely affected by its chemical composition. 
+
+
+#PCA
+```{r}
+#Create PCA
+wine_pca<- prcomp(wine[,-(12:14)], center = TRUE, scale. = TRUE)
+summary(wine_pca)
+round(wine_pca$rotation[,1:3],2)
+qplot(wine_pca$x[,1], wine_pca$x[,2],
+      color = factor(wine$color))
+
+#Rearrange the quality and color variables
+wine$quality_duo <- rep(0,nrow(wine))
+wine$quality_duo <- ifelse(wine$quality <6, "low", "high")
+wine$quality_bi <- ifelse(wine$quality_duo =="high", 1, 0)
+wine$color_bi <- ifelse(wine$color =="red", 1, 0)
+
+#Plot of two PCA's and wine quality
+qplot(wine_pca$x[,1], wine_pca$x[,2],
+      color = factor(wine$quality_duo))
+
+#Merge data
+wine2 <- merge(wine, wine_pca$x[,1:3], by="row.names")
+wine2 <- rename(wine2, wine = Row.names)
+
+#Let's see if a logistic regression model can show a relationship between predicting wine color or quality based off the first 3 PCA's.
+model1 <- glm(color_bi ~ PC1 + PC2 + PC3, family = binomial, data = wine2)
+model2 <- glm(quality_bi ~ PC1 + PC2 + PC3, family = binomial, data = wine2)
+summary(model1)
+summary(model2)
+
+```
+When PCA is run on the wine data, it produces similar results to above, when creating clusters. PCA was able to distinguish the data by color pretty easily, perhaps even better than clustering. The graph of PC1 vs PC2 and color-coded by wine color shows a clear distinction between red and white wine. However, like clustering, PCA seemed to also have a hard time distinguishing the wine by quality. The graph of PC1 vs PC2 and color-coded by wine quality (separated between low and high) shows the two levels of quality greatly intermingled. I even tried to see what a logistic regression model based on three PC’s would fare when predicting color or quality. As expected, the model predicting color had a much lower AIC than the model predicting quality. 
+
+From these two methods, I believe that PCA was a better method to distinguish the data based on wine color. Graphing PC1 and PC2 was enough to show the color difference but it also did it in a more efficient way than clustering. PCA was able to condense all of the variables contained in the wine data into a smaller set of data and show the color difference in one graph alone. Clustering required a bit more work and graphs to show that it was able to show the color difference. However, neither method could accurately distinguish the data by wine quality. This is most likely because there are other factors than chemical composition that pertain to the quality given to a wine by wine snobs.
+
+
+
+

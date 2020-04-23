@@ -1,0 +1,89 @@
+---
+title: "HW3_Q4"
+author: "Mimis Jimenez"
+date: "4/21/2020"
+output: pdf_document
+---
+#load the data and packages
+```{r}
+dataraw<- read.csv("social_marketing.csv")
+View(dataraw)
+
+library(LICORS)
+library(foreach)
+library(mosaic)
+library(ggcorrplot)
+```
+
+#Clean the data
+```{r}
+#Let's take out spam and adult content, since these are most likely bots
+datatest <- subset(dataraw, spam == 0)
+View(datatest)
+dataclean <- subset(datatest, adult == 0)
+View(dataclean)
+#Remove "chatter" and "uncategorized" column from data. They will most likely not add anything useful to our cluster analysis
+dataclean$chatter <- NULL
+dataclean$uncategorized <- NULL
+dataclean$spam <- NULL
+dataclean$adult <- NULL
+View(dataclean)
+```
+I choose to remove columns such as “chatter” and “uncategorized” because these categories will most likely not contribute anything significant to finding a market segment. Even from a marketing point of view, there wouldn’t be a meaningful way to market to people who are interested in “uncategorized.” So these variables, along with “spam” and “adult” were removed from my analysis. 
+
+
+#Let's run clusters to see how the followers can be grouped
+```{r}
+
+#Center and scale the data
+z <- dataclean[,-(1)]
+z <- scale(z, center = TRUE, scale = TRUE)
+
+#Extract centers and scales
+mu = attr(z,"scaled:center")
+sigma = attr(z,"scaled:scale")
+
+#Let's run K-means clustering with K = 6
+clust_6 <- kmeans(z, 6, nstart = 25)
+clust_6$center
+clust_6$center[1,]*sigma + mu
+clust_6$center[2,]*sigma + mu
+clust_6$center[3,]*sigma + mu
+clust_6$center[4,]*sigma + mu
+clust_6$center[5,]*sigma + mu
+clust_6$center[6,]*sigma + mu
+
+religion_sports_followers <- clust_6$center[1,]*sigma + mu
+health_enthusiasts <- clust_6$center[2,]*sigma + mu
+college_gamers <- clust_6$center[3,]*sigma + mu
+informed_travelers <- clust_6$center[5,]*sigma + mu
+cooking_influencers <- clust_6$center[6,]*sigma + mu
+```
+I then proceed to create clusters from the cleaned data. I chose to do six clusters because in marketing, you don’t want to spread out your audience into many segments. From here I looked at the centers for each cluster to see what categories were of highest interest. Most of these clusters had a few distinctive categories of interest. A small number of clusters, however, did not seem to have categories that were particularly high. Most likely, these clusters captured groups of followers that talked about broad topics, but did not have a great affinity for any of the categories. 
+
+
+From here, it is best to take the clusters that did have an affinity in at least two of the categories. These consisted of clusters 1, 2, 3, 5, and 6. From these clusters, we can now define five different market segments. The first segment is called “Religion and Sports Followers” because these followers tend to be really interested in both religion and a sports fandom. Next, we have “Health Enthusiasts” who are people mainly interested in health nutrition and personal fitness and somewhat interested in cooking. The next segment, “College Gamers,” are people who are heavily interested in colleges and online gaming. These are most likely college students with an affinity for gaming. Then we have the “Informed Travelers,” who are people interested in traveling, politics, and the news. Finally, we have “Cooking Influencers.” This is an interesting group that is greatly interested in cooking, but also things such as fashion, beauty, and photo sharing. Most likely this is a group that enjoys the lifestyle of a social media persona (influencer) interested in cooking. In addition to a particular hobby/talent/interest social media influencers are known for photo sharing, which usually encompasses looking good in the photos, hence beauty and fashion.
+
+
+```{r}
+length(which(clust_6$cluster == 1))
+length(which(clust_6$cluster == 2))
+length(which(clust_6$cluster == 3))
+length(which(clust_6$cluster == 5))
+length(which(clust_6$cluster == 6))
+```
+Five segments is a lot for one brand to try to target and brand after. So it is my recommendation that NutrientH20 focus on no more than three segments. These three segments can be selected on the size of how many followers fall within these segments. Thus, the three largest segments, and the segments that NutrientH20 should target, are the “Health Enthusiasts,” “Religion and Sports Followers,” and the “Informed Travelers.”
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```

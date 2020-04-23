@@ -1,0 +1,172 @@
+---
+title: "HW3_Q1"
+author: "Mimis Jimenez"
+date: "4/20/2020"
+output: html_document
+---
+##Predictive Model Building
+
+I will first start by tweaking the data around and also taking a look at summaries of a handful of the variables.
+```{r}
+greendata_raw = read.csv("greenbuildings.csv", header = T)
+#View(greendata_raw)
+
+greendata = na.omit(greendata_raw) 
+#View(greendata)
+
+#median rent for green and non-green buildings; green buildings seem to have higher rent compared to non-green buildings
+greendata %>%
+  group_by(green_rating) %>% 
+  summarize(median_rent = median(Rent))
+
+#percent class a and class b, separated by green and non-green; green buildings are mostly class a
+greendata %>% 
+  group_by(green_rating) %>% 
+  summarize(pct_a = mean(class_a) * 100, pct_b = mean(class_b) * 100, 
+            pct_c = 100 - pct_a - pct_b)
+
+#Changing green rating to string variable
+greendata$GreenRating <- rep(0,nrow(greendata))
+greendata$GreenRating[which(greendata$green_rating==1)] <- "Green"
+greendata$GreenRating[which(greendata$green_rating==0)] <- "Not Green"
+
+#Creating ClassC Variable
+greendata$ClassC <- rep(0,nrow(greendata))
+greendata$ClassC <- greendata$class_a + greendata$class_b
+
+#Creating Class Variable
+greendata$Class <- rep(0,nrow(greendata))
+greendata$Class[which(greendata$class_a==1)] <- "A"
+greendata$Class[which(greendata$class_b==1)] <- "B"
+greendata$Class[which(greendata$ClassC==0)] <- "C"
+
+#Changing Amenities variable
+greendata$amenities[greendata$amenities == "1"] <- "Yes"
+greendata$amenities[greendata$amenities == "0"] <- "No"
+
+#graph that shows proportions of green/not green buildings in each class
+ggplot(data = greendata) +
+  geom_bar(mapping = aes(x = Class, y = ..prop.., group = 1)) +
+  facet_wrap(GreenRating~.) +
+  theme_bw()
+
+#RENT VS AMENITIES
+fill <- c("forestgreen", "lightgoldenrod4")
+greendata$amenities[greendata$amenities == "1"] <- "Yes"
+greendata$amenities[greendata$amenities == "0"] <- "No"
+
+AmenitiesChart<- ggplot(data=greendata, aes(x=amenities, y=Rent, fill=greendata$GreenRating)) +
+  ggtitle("Amenities vs Rent") +
+  geom_bar(stat="summary", fun.y = "mean", position=position_dodge(), 
+           width = 0.7)+  scale_fill_manual(values=fill)
+AmenitiesChart
+
+plot(Rent ~ stories, data = greendata, col=c("red", "blue"))
+
+#Rent by Class Bar Chart
+fill <- c("mediumseagreen", "darksalmon")
+ClassChart1<- ggplot(data=greendata, aes(x=Class, y=Rent, fill=GreenRating)) +
+  ggtitle("Class vs Rent") +
+  geom_bar(stat="summary", fun.y = "mean",position = position_dodge(), 
+           width =0.7) +  scale_fill_manual(values=fill)
+ClassChart1
+```
+To create the best model to predict price, I wanted to change the data a bit and understand the data through summaries. Through doing this, I was able to create a dummy variable for class and see that the rent was higher for green buildings when accounting for other variables such as class.
+
+
+
+After understanding the data a bit more clearly, I will now try to fit a model that can predict rent.
+```{r}
+
+#Begin linear regression models
+
+greenlm1 <- lm(Rent~green_rating+Class+amenities, data = greendata)
+summary(greenlm1)
+
+#Adding cluster rent greatly increased the R^2
+greenlm2 <- lm(Rent~green_rating+Class+amenities+cluster_rent, data = greendata)
+summary(greenlm2)
+
+#age doesn't add much value to the R^2
+greenlm3 <- lm(Rent~green_rating+Class+amenities+cluster_rent+age , data = greendata)
+summary(greenlm3)
+
+#A model with just cluster rent and green rating
+greenlm4 <- lm(Rent~green_rating+cluster_rent, data = greendata)
+summary(greenlm4)
+
+#A large model
+greenlm5 <- lm(Rent~green_rating+cluster_rent+renovated+Class+net+cluster+size+empl_gr, data = greendata)
+summary(greenlm5)
+
+#Remove the highly insignifcant variables
+greenlm6 <- lm(Rent~green_rating+cluster_rent+Class+net+cluster+size, data = greendata)
+summary(greenlm6)
+
+#The interaction variable does not add significant value to predicting rent
+greenlm7 <- lm(Rent~green_rating*Class+cluster_rent+net+cluster+size, data = greendata)
+summary(greenlm7)
+
+#models 2, 4, 6 seem good to proceed with!
+
+```
+Next, I went into the process of creating a model that would be able to predict rent . I did this by creating several linear regression models that used Rent as the dependent variable. My process that I used to select models is by starting with a small model and then adding different variables to see how R^2 was affected. I then selected three models that had favorable R^2 and that were limited to significant variables and not insignificant variables. I would then evaluate the RMSE’s of these models to see which produced the smallest when predicting out of sample rent. 
+
+
+Let's look at predictive power with train and test sets
+```{r}
+# easy averaging over train/test splits
+set.seed(0824)
+n = nrow(greendata)
+n_train = round(0.8*n)  # round to nearest integer
+n_test = n - n_train
+
+rmse = function(y, yhat) {
+  sqrt(mean(y-yhat)^2)
+}
+
+rmse_vals = do(1000)*{
+  
+  # re-split into train and test cases with the same sample sizes
+  train_cases = sample.int(n, n_train, replace=FALSE)
+  test_cases = setdiff(1:n, train_cases)
+  green_train = greendata[train_cases,]
+  green_test = greendata[test_cases,]
+  
+  
+  # Fit to the training data
+  greenlm2t <- lm(Rent~green_rating+Class+amenities+cluster_rent, data = green_train)
+
+  greenlm4t <- lm(Rent~green_rating+cluster_rent, data = green_train)
+  
+  greenlm6t <- lm(Rent~green_rating+cluster_rent+Class+net+cluster+size, data = green_train)
+  
+
+  # Predictions out of sample
+  yhat_test2 = predict(greenlm2t, green_test)
+  yhat_test4 = predict(greenlm4t, green_test)
+  yhat_test6 = predict(greenlm6t, green_test)
+  
+
+  c(rmse(greendata$Rent, yhat_test2),
+    rmse(greendata$Rent, yhat_test4),
+    rmse(greendata$Rent, yhat_test6)
+    )
+}
+
+rmse_vals
+colMeans(rmse_vals)
+boxplot(rmse_vals)
+
+#greenlm4 seems to be the model with the lowest RMSE
+```
+The models I proceeded with were models 2, 4, and 6. I wanted to test the predictive power of these models to see which would be considered the “best.” I did this by separating the data into a test and train set. I then used the models built with the train set to predict rent from the test set. I ran code to do this 1000 times for each model and give the average of the RMSE’s. As a result, I found that model 4 had the lowest RMSE. This shows that it has the smallest error of predicting rent. But it is worth considering, that the RMSE for all three selected models are similar and all quite low. 
+
+
+```{r}
+greenlm6 <- lm(Rent~green_rating+cluster_rent+Class+net+cluster+size, data = greendata)
+summary(greenlm6)
+```
+Based off of this I would select model 6 as the “best” model. Model 6 had the highest R^2 which shows that it does the best explaining the variance in Rent compared to the other models. It also had a low RMSE when predicting rent which shows its capability to predict. Using this model, we can see that the average rent increases by $8.17 when the building is green (controlling for the significant variables of: cluster_rent, class, net, cluster, and size). 
+
+

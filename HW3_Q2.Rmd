@@ -1,0 +1,18 @@
+---
+title: "HW3_Q2"
+author: "Mimis Jimenez"
+date: "4/22/2020"
+output: pdf_document
+---
+
+##What Causes What?
+
+
+1) If you were to run a regression of “Crime” on “Police,” you will probably fall prey to correlation instead of causality. It would make sense to try to understand the relationship between the two variables, but it is important to keep in mind that there may be other factors to consider. For instance, it would be hard to deduce that having more police would cause there to be lower crime rates. A city that experiences a higher crime rate most likely will have more police in that city. The greater number of police most likely did not cause a higher rate of crimes. Most likely, the greater number of police was a response to a higher crime rate.
+
+2) The researchers of UPenn were able to look at a situation in which there is an increase of police in Washington D.C. that does not correspond to street crime. The increase in police was due to the terrorist level being on “high-alert.” On high-alert days, there are more police officers to be on stand-by in case of a terrorist attack. Since the increased number of officers is not due to crime, the researchers were able to more accurately see if the increased presence had an effect on crime. They found that crime rate did decrease due to the increased police presence. The table also shows the daily total of crimes on high alert days. It shows that on high-alert days, crime does significantly decrease, even when controlling for Metro ridership.
+
+3) The researchers controlled for Metro ridership to try to circumvent a potential confounding factor of less people to be victims of crime. The argument was that maybe on high-alert days, tourists would be less likely to visit D.C. and then there would be less crimes because there are less people to commit crimes on. However, they found that even when controlling for Metro ridership, crime levels still decreased on high alert days.
+
+4) The model in Table 4 is trying to see if there is a relationship between the amount of daily crime and an interaction between High Alert and the districts, separated into District 1 and Other Districts while controlling for Metro ridership. From the table, we can see that although the High Alert x District 1 variable is significant, the Other Districts dummy variable is not. Both dummy variables show a negative coefficient which means that there is a decrease in crimes on high alert days. But we should proceed with caution on how to consider this result as the Other Districts variable was not significant on a 5% level. 
+
